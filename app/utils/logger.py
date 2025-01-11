@@ -1,3 +1,6 @@
+# utils/__init__.py
+from .logger import get_logger
+
 # utils/logger.py
 import logging
 import sys

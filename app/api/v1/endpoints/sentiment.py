@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas import portfolio as schema
-from app.services import portfolio as service
+from app.services import sentiment as service
 
 router = APIRouter()
 
