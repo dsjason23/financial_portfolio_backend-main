@@ -2,11 +2,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
-<<<<<<< HEAD
 from app.db.base_class import Base
-=======
-from app.db.base import Base
->>>>>>> 1057750b7e20d3b20fee5059f81006ae529d5914
 
 class News(Base):
     __tablename__ = "news"

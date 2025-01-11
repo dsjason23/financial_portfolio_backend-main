@@ -9,15 +9,12 @@ router = APIRouter()
 
 @router.post("/")
 async def create_user(user: schema.UserCreate, db: Session = Depends(get_db)):
-<<<<<<< HEAD
     existing_user = await service.get_user_by_email(db, user.email)
     if existing_user:
         raise HTTPException(
             status_code=400,
             detail="Email already registered"
         )
-=======
->>>>>>> 1057750b7e20d3b20fee5059f81006ae529d5914
     return await service.create_user(db, user)
 
 @router.get("/{user_id}")
@@ -30,7 +27,6 @@ async def get_user(user_id: int, db: Session = Depends(get_db)):
 @router.put("/{user_id}")
 async def update_user(
     user_id: int,
-<<<<<<< HEAD
     user_update: schema.UserUpdate,
     db: Session = Depends(get_db)
 ):
@@ -45,13 +41,3 @@ async def delete_user(user_id: int, db: Session = Depends(get_db)):
     if not success:
         raise HTTPException(status_code=404, detail="User not found")
     return {"message": "User successfully deleted"}
-=======
-    user: schema.UserUpdate,
-    db: Session = Depends(get_db)
-):
-    return await service.update_user(db, user_id, user)
-
-@router.delete("/{user_id}")
-async def delete_user(user_id: int, db: Session = Depends(get_db)):
-    return await service.delete_user(db, user_id)
->>>>>>> 1057750b7e20d3b20fee5059f81006ae529d5914

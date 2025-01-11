@@ -4,18 +4,11 @@ sqlalchemy>=2.0.23
 psycopg2-binary>=2.9.9
 python-dotenv>=1.0.0
 pydantic>=2.5.2
-<<<<<<< HEAD
 pydantic[email]
-=======
->>>>>>> 1057750b7e20d3b20fee5059f81006ae529d5914
 pydantic-settings>=2.1.0
 python-jose>=3.3.0
 passlib>=1.7.4
 alembic>=1.12.1
 requests>=2.31.0
-<<<<<<< HEAD
 python-multipart>=0.0.6
 bcrypt
-=======
-python-multipart>=0.0.6
->>>>>>> 1057750b7e20d3b20fee5059f81006ae529d5914

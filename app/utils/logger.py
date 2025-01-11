@@ -1,9 +1,6 @@
-<<<<<<< HEAD
 # utils/__init__.py
 from .logger import get_logger
 
-=======
->>>>>>> 1057750b7e20d3b20fee5059f81006ae529d5914
 # utils/logger.py
 import logging
 import sys
