@@ -1,7 +1,7 @@
-# services/financial.py
 import aiohttp
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
 from app.core.config import settings
 from app.models.portfolio import Portfolio
 from app.schemas.portfolio import PortfolioCreate, PortfolioUpdate
@@ -46,6 +46,35 @@ class FinancialService:
                 print(f"Error fetching company news: {e}")
                 return []
 
+    async def get_portfolios(
+        self, 
+        db: Session, 
+        user_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[Portfolio]:
+        """Get all portfolios for a specific user."""
+        return (
+            db.query(Portfolio)
+            .filter(Portfolio.user_id == user_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+    async def get_portfolio(
+        self,
+        db: Session,
+        portfolio_id: int,
+        user_id: int
+    ) -> Optional[Portfolio]:
+        """Get a specific portfolio by ID."""
+        return (
+            db.query(Portfolio)
+            .filter(Portfolio.id == portfolio_id, Portfolio.user_id == user_id)
+            .first()
+        )
+
     async def create_portfolio(
         self, 
         db: Session, 
@@ -64,6 +93,47 @@ class FinancialService:
         db.commit()
         db.refresh(db_portfolio)
         return db_portfolio
+
+    async def update_portfolio(
+        self,
+        db: Session,
+        portfolio_id: int,
+        portfolio_update: PortfolioUpdate,
+        user_id: int
+    ) -> Portfolio:
+        """Update a portfolio."""
+        db_portfolio = await self.get_portfolio(db, portfolio_id, user_id)
+        if not db_portfolio:
+            raise HTTPException(status_code=404, detail="Portfolio not found")
+
+        update_data = portfolio_update.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(db_portfolio, field, value)
+
+        # Update current price
+        current_price = await self.get_stock_price(db_portfolio.ticker)
+        if current_price:
+            db_portfolio.current_price = current_price
+
+        db.add(db_portfolio)
+        db.commit()
+        db.refresh(db_portfolio)
+        return db_portfolio
+
+    async def delete_portfolio(
+        self,
+        db: Session,
+        portfolio_id: int,
+        user_id: int
+    ) -> bool:
+        """Delete a portfolio."""
+        db_portfolio = await self.get_portfolio(db, portfolio_id, user_id)
+        if not db_portfolio:
+            raise HTTPException(status_code=404, detail="Portfolio not found")
+
+        db.delete(db_portfolio)
+        db.commit()
+        return True
 
     async def update_portfolio_prices(self, db: Session) -> None:
         """Update current prices for all portfolios."""

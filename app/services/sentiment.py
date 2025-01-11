@@ -1,91 +1,92 @@
-# services/sentiment.py
 from typing import List, Optional
-import aiohttp
 from sqlalchemy.orm import Session
 from app.models.sentiment import Sentiment, SentimentType
 from app.models.portfolio import Portfolio
-from app.schemas.sentiment import SentimentCreate
+from app.services.financial import FinancialService
+from fastapi import HTTPException
 
 class SentimentService:
     def __init__(self):
-        self.base_url = "https://api.example.com/sentiment"  # Replace with actual sentiment API
-
-    async def analyze_text(self, text: str) -> tuple[SentimentType, float]:
-        """Analyze sentiment of text and return sentiment type and confidence."""
-        # This is a placeholder implementation
-        # In a real application, you would integrate with a sentiment analysis API
-        # or use a machine learning model
-        
-        # Mock implementation
-        import random
-        sentiment_types = list(SentimentType)
-        sentiment = random.choice(sentiment_types)
-        confidence = random.uniform(0.6, 0.95)
-        
-        return sentiment, confidence
-
-    async def analyze_news(self, news_text: str) -> Optional[Sentiment]:
-        """Analyze sentiment from news text."""
-        sentiment_type, confidence = await self.analyze_text(news_text)
-        return {
-            "sentiment_type": sentiment_type,
-            "confidence": confidence
-        }
-
-    async def create_sentiment(
-        self, 
-        db: Session, 
-        sentiment: SentimentCreate
-    ) -> Sentiment:
-        """Create a new sentiment entry."""
-        db_sentiment = Sentiment(**sentiment.model_dump())
-        db.add(db_sentiment)
-        db.commit()
-        db.refresh(db_sentiment)
-        return db_sentiment
+        self.financial_service = FinancialService()
 
     async def get_portfolio_sentiment(
         self, 
         db: Session, 
-        portfolio_id: int
+        portfolio_id: int,
+        user_id: int
     ) -> List[Sentiment]:
-        """Get sentiment analysis for a portfolio."""
-        return db.query(Sentiment)\
-                .filter(Sentiment.portfolio_id == portfolio_id)\
-                .order_by(Sentiment.created_at.desc())\
-                .all()
+        """Get sentiment analysis for a portfolio"""
+        # Verify portfolio belongs to user
+        portfolio = db.query(Portfolio).filter(
+            Portfolio.id == portfolio_id,
+            Portfolio.user_id == user_id
+        ).first()
+        
+        if not portfolio:
+            raise HTTPException(status_code=404, detail="Portfolio not found")
 
-    async def analyze_portfolio(
+        return db.query(Sentiment).filter(
+            Sentiment.portfolio_id == portfolio_id
+        ).order_by(Sentiment.created_at.desc()).all()
+
+    async def analyze_sentiment(self, ticker: str) -> dict:
+        """Analyze sentiment for a ticker symbol"""
+        news = await self.financial_service.get_company_news(ticker)
+        if not news:
+            return {
+                "sentiment_type": SentimentType.HOLD,
+                "confidence": 0.5,
+                "news_count": 0
+            }
+            
+        # Simple sentiment analysis based on news volume
+        sentiment_type = SentimentType.HOLD
+        confidence = 0.5
+        
+        # Default sentiment value for news items
+        news_sentiment = 1  # positive sentiment for this example
+        
+        if len(news) > 10:  # Lots of news might indicate strong movement
+            sentiment_type = SentimentType.STRONG_BUY if news_sentiment > 0 else SentimentType.STRONG_SELL
+            confidence = 0.8
+        elif len(news) > 5:
+            sentiment_type = SentimentType.BUY if news_sentiment > 0 else SentimentType.SELL
+            confidence = 0.6
+
+        return {
+            "sentiment_type": sentiment_type,
+            "confidence": confidence,
+            "news_count": len(news)
+        }
+
+    async def refresh_sentiment(
         self, 
         db: Session, 
-        portfolio_id: int
+        portfolio_id: int,
+        user_id: int
     ) -> List[Sentiment]:
-        """Analyze sentiment for a portfolio's current news."""
-        from app.services import FinancialService
-        financial_service = FinancialService()
+        """Refresh sentiment analysis for a portfolio"""
+        # Verify portfolio belongs to user
+        portfolio = db.query(Portfolio).filter(
+            Portfolio.id == portfolio_id,
+            Portfolio.user_id == user_id
+        ).first()
         
-        portfolio = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
         if not portfolio:
-            return []
-            
-        # Get latest news
-        news = await financial_service.get_company_news(portfolio.ticker)
-        sentiments = []
+            raise HTTPException(status_code=404, detail="Portfolio not found")
+
+        # Get new sentiment analysis
+        analysis = await self.analyze_sentiment(portfolio.ticker)
         
-        # Analyze each news item
-        for item in news[:5]:  # Analyze last 5 news items
-            sentiment_type, confidence = await self.analyze_text(
-                f"{item.get('headline', '')} {item.get('summary', '')}"
-            )
-            
-            db_sentiment = await self.create_sentiment(
-                db,
-                SentimentCreate(
-                    portfolio_id=portfolio_id,
-                    sentiment_type=sentiment_type,
-                    confidence=confidence
-                )
-            )
-            sentiments.append(db_sentiment)
-            
-        return sentiments
+        # Create new sentiment record
+        sentiment = Sentiment(
+            portfolio_id=portfolio_id,
+            sentiment_type=analysis["sentiment_type"],
+            confidence=analysis["confidence"]
+        )
+        
+        db.add(sentiment)
+        db.commit()
+        db.refresh(sentiment)
+        
+        return await self.get_portfolio_sentiment(db, portfolio_id, user_id)
