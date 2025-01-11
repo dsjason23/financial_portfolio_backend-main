@@ -10,6 +10,6 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # test
 
-http://localhost:8000/api/v1/portfolio/
-http://localhost:8000/api/v1/sentiment/
+http://localhost:8000/api/v1/portfolio/ <br/>
+http://localhost:8000/api/v1/sentiment/ <br/>
 http://localhost:8000/api/v1/users/
